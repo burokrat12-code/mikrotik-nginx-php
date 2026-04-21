@@ -2,6 +2,7 @@
 
 OUTPUT_FILE="/etc/nginx/cloudflare_real_ips.conf"
 TMP_FILE="${OUTPUT_FILE}.tmp"
+RELOAD_NGINX="${1:-false}"  # Первый аргумент: нужно ли перезагружать nginx
 
 {
     echo "# Cloudflare IP ranges - generated on $(date)"
@@ -28,4 +29,8 @@ if [ -f ${OUTPUT_FILE} ] && cmp -s ${TMP_FILE} ${OUTPUT_FILE}; then
 fi
 
 mv ${TMP_FILE} ${OUTPUT_FILE}
-nginx -t >/dev/null 2>&1 && nginx -s reload
+
+# Перезагружаем nginx только если запущен и передан аргумент reload
+if [ "$RELOAD_NGINX" = "reload" ] && pgrep nginx > /dev/null; then
+    nginx -t >/dev/null 2>&1 && nginx -s reload
+fi
