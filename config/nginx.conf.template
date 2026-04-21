@@ -15,10 +15,10 @@ stream {
     access_log /var/log/nginx/stream_access.log stream_log;
 
     map $ssl_preread_server_name $target_backend {
-        ${MAIN_DOMAIN}              web_backend;
-        ${PUSH_DOMAIN}              web_backend;
-        ${MAIL_DOMAIN}              web_backend;
-        default                     web_backend;
+        ${MAIN_DOMAIN}          web_backend;
+        ${PUSH_DOMAIN}          web_backend;
+        ${MAIL_DOMAIN}          web_backend;
+        default                 web_backend;
     }
 
     upstream web_backend {
@@ -80,28 +80,11 @@ http {
         error_page 403 /403.html;
         error_page 404 /404.html;
 
-        location ~ /\. {
-            deny all;
-            return 444;
-        }
-
-        location ~* (wp-admin|wp-login|xmlrpc|wp-config|setup-config|\.env|\.git|\.svn|\.htaccess|\.htpasswd|phpmyadmin|adminer|webdav|autodiscover|geoserver) {
-            return 444;
-        }
-
-        location ~* /(info|test|phpinfo|debug|dev|config|setup|install|probe|check|status)\.php$ {
-            deny all;
-            return 444;
-        }
-
-        location ~* \.(txt|log|ini|conf|bak|backup|old|sql|zip|tar|gz|sqlite|db|yml|yaml|json|xml|sh|py|pl|rb)$ {
-            deny all;
-            return 403;
-        }
-
-        if ($http_user_agent ~* (nmap|nikto|wikto|sf|sqlmap|bsqlbf|w3af|acunetix|havij|appscan|whatweb|zgrab|curl|python|go-http|masscan|netsparker|nessus|qualys|visionheight)) {
-            return 444;
-        }
+        location ~ /\. { deny all; return 444; }
+        location ~* (wp-admin|wp-login|xmlrpc|wp-config|setup-config|\.env|\.git|\.svn|\.htaccess|\.htpasswd|phpmyadmin|adminer|webdav|autodiscover|geoserver) { return 444; }
+        location ~* /(info|test|phpinfo|debug|dev|config|setup|install|probe|check|status)\.php$ { deny all; return 444; }
+        location ~* \.(txt|log|ini|conf|bak|backup|old|sql|zip|tar|gz|sqlite|db|yml|yaml|json|xml|sh|py|pl|rb)$ { deny all; return 403; }
+        if ($http_user_agent ~* (nmap|nikto|wikto|sf|sqlmap|bsqlbf|w3af|acunetix|havij|appscan|whatweb|zgrab|curl|python|go-http|masscan|netsparker|nessus|qualys|visionheight)) { return 444; }
 
         location = /403.html { root /var/www/html/403; internal; }
         location = /404.html { root /var/www/html/404; internal; }
