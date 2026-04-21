@@ -1,10 +1,10 @@
 FROM debian:bookworm-20241223-slim
 
-# Установка базовых пакетов + cron + ca-certificates
+# Установка базовых пакетов + cron + ca-certificates + gettext (для envsubst)
 RUN apt-get update && apt-get install -y \
     curl gnupg2 ca-certificates lsb-release debian-archive-keyring \
     supervisor php8.2-fpm php8.2-cli php8.2-common php8.2-opcache openssl \
-    cron \
+    cron gettext \
     && apt-get clean
 
 # Установка Nginx из официального репозитория
@@ -16,7 +16,7 @@ RUN curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor \
 
 RUN apt-get update && apt-get install -y nginx=1.30.0-1~bookworm && apt-get clean
 
-# Обновление CA-сертификатов (для curl без -k)
+# Обновление CA-сертификатов
 RUN update-ca-certificates --fresh
 
 # Создание директорий
@@ -37,24 +37,27 @@ RUN sed -i 's|listen = /run/php/php8.2-fpm.sock|listen = 127.0.0.1:9000|' /etc/p
 COPY config/update-cloudflare-ips.sh /usr/local/bin/update-cloudflare-ips.sh
 RUN chmod +x /usr/local/bin/update-cloudflare-ips.sh
 
-# Создаём начальный файл с IP Cloudflare (чтобы nginx запустился)
+# Создаём начальный файл с IP Cloudflare
 RUN /usr/local/bin/update-cloudflare-ips.sh
 
 # ========== CRON ==========
-# Копируем задание в /etc/cron.d/ (правильное место для Debian)
 COPY config/crontab /etc/cron.d/cloudflare-update
 RUN chmod 644 /etc/cron.d/cloudflare-update
 RUN touch /var/log/cloudflare-update.log && chmod 666 /var/log/cloudflare-update.log
 
 # ========== КОПИРОВАНИЕ КОНФИГОВ ==========
-COPY config/nginx.conf /etc/nginx/nginx.conf
+COPY config/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY config/supervisord.conf /etc/supervisor/supervisord.conf
 COPY config/default-site.conf /etc/nginx/conf.d/default.conf
 COPY config/php-fpm.conf /etc/php/8.2/fpm/pool.d/www.conf
+
+# ========== ENTRYPOINT ==========
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Рабочая директория
 WORKDIR /var/www/html
 
 EXPOSE 80 443 8443
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+ENTRYPOINT ["/entrypoint.sh"]
