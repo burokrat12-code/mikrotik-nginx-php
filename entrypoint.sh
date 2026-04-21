@@ -1,6 +1,6 @@
 #!/bin/sh
 
-envsubst '${MAIN_DOMAIN} ${PUSH_DOMAIN} ${MAIL_DOMAIN} ${WEB_ROOT} ${NTFY_BACKEND} ${NTFY_UserAgent} ${NTFY_SECRET_PATH} ${MAIL_BACKEND} ${MAIL_SECRET_PATH}' \
+envsubst '${MAIN_DOMAIN} ${PUSH_DOMAIN} ${MAIL_DOMAIN} ${WEB_ROOT} ${NTFY_BACKEND} ${NTFY_UserAgent} ${NTFY_SECRET_PATH} ${MAIL_BACKEND} ${MAIL_SECRET_PATH} ${VLESS_DOMAIN} ${VLESS_BACKEND}' \
     < /etc/nginx/nginx.conf.template \
     > /etc/nginx/nginx.conf
 
