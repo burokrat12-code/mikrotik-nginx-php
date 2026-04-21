@@ -1,13 +1,11 @@
 FROM debian:bookworm-20241223-slim
 
-# Установка базовых пакетов + cron + ca-certificates
 RUN apt-get update && apt-get install -y \
     curl gnupg2 ca-certificates lsb-release debian-archive-keyring \
     supervisor php8.2-fpm php8.2-cli php8.2-common php8.2-opcache openssl \
     cron \
     && apt-get clean
 
-# Установка Nginx из официального репозитория
 RUN curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor \
     | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null \
     && echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
@@ -16,46 +14,29 @@ RUN curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor \
 
 RUN apt-get update && apt-get install -y nginx=1.30.0-1~bookworm && apt-get clean
 
-# Обновление CA-сертификатов (для curl без -k)
 RUN update-ca-certificates --fresh
 
-# Создание директорий
 RUN mkdir -p /var/www/html /etc/ssl/certs /etc/ssl/private \
-    && chown -R www-data:www-data /var/www/html \
-    && mkdir -p /var/log/nginx /var/run/fail2ban /var/log/supervisor
+    && chown -R www-data:www-data /var/www/html
 
-# Создание самоподписанного сертификата (запасной вариант)
 RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/ssl/private/nginx-selfsigned.key \
     -out /etc/ssl/certs/nginx-selfsigned.crt \
     -subj "/C=RU/ST=Moscow/L=Moscow/O=Default/CN=localhost"
 
-# Настройка PHP-FPM на прослушивание порта 9000
 RUN sed -i 's|listen = /run/php/php8.2-fpm.sock|listen = 127.0.0.1:9000|' /etc/php/8.2/fpm/pool.d/www.conf
 
-# ========== ДОБАВЛЯЕМ НАШИ НАСТРОЙКИ ==========
-
-# Копируем скрипт обновления Cloudflare IP
+# Скрипт обновления Cloudflare IP
 COPY update-cloudflare-ips.sh /usr/local/bin/update-cloudflare-ips.sh
 RUN chmod +x /usr/local/bin/update-cloudflare-ips.sh
 
-# Создаём начальный файл с IP Cloudflare (чтобы Nginx запустился)
+# Создаём начальный файл с IP Cloudflare
 RUN /usr/local/bin/update-cloudflare-ips.sh
 
-# Настройка cron
+# Cron
 COPY crontab /etc/crontab
 RUN chmod 644 /etc/crontab && crontab /etc/crontab
-
-# Создаём лог-файл для cron
 RUN touch /var/log/cloudflare-update.log && chmod 666 /var/log/cloudflare-update.log
-
-# Копируем конфиги (будут перезаписаны при монтировании volumes)
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY supervisord.conf /etc/supervisor/supervisord.conf
-COPY www.conf /etc/php/8.2/fpm/pool.d/www.conf
-
-# Директория для веб-файлов
-WORKDIR /var/www/html
 
 EXPOSE 80 443 8443
 
