@@ -16,6 +16,12 @@ RUN curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor \
 
 RUN apt-get update && apt-get install -y nginx=1.30.0-1~bookworm && apt-get clean
 
+# Установка дополнительных пакетов для системы бана (logrotate, bash)
+RUN apt-get update && apt-get install -y \
+    logrotate \
+    bash \
+    && apt-get clean
+
 # Обновление CA-сертификатов
 RUN update-ca-certificates --fresh
 
@@ -39,6 +45,14 @@ RUN chmod +x /usr/local/bin/update-cloudflare-ips.sh
 
 # Создаём начальный файл с IP Cloudflare
 RUN /usr/local/bin/update-cloudflare-ips.sh
+
+# ========== СКРИПТ АНАЛИЗА ЛОГОВ И БАНА ==========
+COPY scripts/analyze_logs.sh /usr/local/bin/analyze_logs.sh
+RUN chmod +x /usr/local/bin/analyze_logs.sh && \
+    touch /tmp/nginx_ban_last_run && chmod 666 /tmp/nginx_ban_last_run
+
+# ========== НАСТРОЙКА LOGROTATE ДЛЯ NGINX ==========
+COPY config/logrotate-nginx.conf /etc/logrotate.d/nginx
 
 # ========== CRON ==========
 COPY config/crontab /etc/cron.d/cloudflare-update
