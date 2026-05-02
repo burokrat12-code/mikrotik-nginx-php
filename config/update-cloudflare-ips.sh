@@ -1,9 +1,14 @@
 #!/bin/sh
 
 OUTPUT_FILE="/etc/nginx/cloudflare_real_ips.conf"
+CF_FILTER_FILE="/tmp/cloudflare_ips.txt"
 TMP_FILE="${OUTPUT_FILE}.tmp"
-RELOAD_NGINX="${1:-false}"  # Первый аргумент: нужно ли перезагружать nginx
+TMP_CF_FILE="${CF_FILTER_FILE}.tmp"
+RELOAD_NGINX="${1:-false}"
 
+# ============================================
+# 1. Обновляем файл для nginx (с set_real_ip_from)
+# ============================================
 {
     echo "# Cloudflare IP ranges - generated on $(date)"
     echo "# Source: https://www.cloudflare.com/ips-v4 and ips-v6"
@@ -25,12 +30,28 @@ RELOAD_NGINX="${1:-false}"  # Первый аргумент: нужно ли п�
 
 if [ -f ${OUTPUT_FILE} ] && cmp -s ${TMP_FILE} ${OUTPUT_FILE}; then
     rm -f ${TMP_FILE}
-    exit 0
+else
+    mv ${TMP_FILE} ${OUTPUT_FILE}
 fi
 
-mv ${TMP_FILE} ${OUTPUT_FILE}
+# ============================================
+# 2. Обновляем файл для скрипта бана (только IP)
+# ============================================
+{
+    curl -s https://www.cloudflare.com/ips-v4 2>/dev/null
+    echo ""
+    curl -s https://www.cloudflare.com/ips-v6 2>/dev/null
+} > ${TMP_CF_FILE}
 
-# Перезагружаем nginx только если запущен и передан аргумент reload
+if [ -f ${CF_FILTER_FILE} ] && cmp -s ${TMP_CF_FILE} ${CF_FILTER_FILE}; then
+    rm -f ${TMP_CF_FILE}
+else
+    mv ${TMP_CF_FILE} ${CF_FILTER_FILE}
+fi
+
+# ============================================
+# 3. Перезагружаем nginx только если нужно
+# ============================================
 if [ "$RELOAD_NGINX" = "reload" ] && pgrep nginx > /dev/null; then
     nginx -t >/dev/null 2>&1 && nginx -s reload
 fi
